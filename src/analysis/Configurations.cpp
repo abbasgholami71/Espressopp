@@ -144,7 +144,26 @@ void Configurations::gather()
         {
             Real3D pos = cit->position();
             Int3D img = cit->image();
-            if (!system.ifShear)
+            if (system.ifShear)
+            {
+                if (folded)
+                {
+                    int img_z = img[2];
+                    system.bc->foldPosition(pos, img);
+                    if (img[2] != img_z)
+                    {
+                        pos[0] -= (img[2]-img_z) * system.shearOffset;
+                        system.bc->foldPosition(pos, img);
+                    }
+                }
+                else
+                {
+                    if (img[2] != 0)
+                        pos[0] += img[2] * system.shearOffset;
+                    system.bc->unfoldPosition(pos, img);
+                }
+            }
+            else
             {
                 if (folded)
                     system.bc->foldPosition(pos, img);
@@ -194,12 +213,12 @@ void Configurations::gather()
                     system.comm->send(iproc, DEFAULT_TAG, 0);
                     stat = req.wait();
                     nVals = *stat.count<Real3D>();
-                    if (nVals != nIds)
+                    /* if (nVals != nIds)
                     {
                         LOG4ESPP_ERROR(logger, "serious error collecting data, got "
                                                    << nIds << " ids, but " << nVals
                                                    << " coordinates");
-                    }
+                    }*/
                 }
                 if (gatherVel)
                 {
