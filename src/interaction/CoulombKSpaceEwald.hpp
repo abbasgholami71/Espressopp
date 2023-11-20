@@ -193,12 +193,12 @@ public:
             kx2 = kx * kx;
             rkx2 = kx2 * rLx2;
             rk2PIx = kx * rclx;
-            for (int ky = min_ky; ky <= kmax; ky++)
+            for (int ky = -kmax; ky <= kmax; ky++)
             {
                 ky2 = ky * ky;
                 rky2 = ky2 * rLy2;
                 rk2PIy = ky * rcly;
-                for (int kz = min_kz; kz <= kmax; kz++)
+                for (int kz = -kmax; kz <= kmax; kz++)
                 {
                     kz2 = kz * kz;
                     rkz2 = kz2 * rLz2;
@@ -300,12 +300,12 @@ public:
             kx2 = kx * kx;
             rkx2 = kx2 * rLx2;
             rk2PIx = kx * rclx;
-            for (int ky = min_ky; ky <= kmax; ky++)
+            for (int ky = -kmax; ky <= kmax; ky++)
             {
                 ky2 = ky * ky;
                 rky2 = ky2 * rLy2;
                 rk2PIy = ky * rcly;
-                for (int kz = min_kz; kz <= kmax; kz++)
+                for (int kz = -kmax; kz <= kmax; kz++)
                 {
                     kz2 = kz * kz;
                     rkz2 = (kz + .0) / Lz - cottheta * (kx + .0) / Lx;
