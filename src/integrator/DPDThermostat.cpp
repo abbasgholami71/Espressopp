@@ -40,12 +40,12 @@
 #ifdef RANDOM123_EXIST
 #include "mpi.hpp"
 #include <boost/signals2.hpp>
-/*UNCOMMENT TO ENABLE GAUSSIAN DISTRIBUTION
+//UNCOMMENT TO ENABLE GAUSSIAN DISTRIBUTION
 #ifndef M_PIl
 #define M_PIl 3.1415926535897932384626433832795029L
 #endif
 #define M_2PI (2 * M_PIl)
-*/
+
 #endif
 
 namespace espressopp
@@ -125,23 +125,28 @@ void DPDThermostat::thermalize()
 
     System& system = getSystemRef();
     system.storage->updateGhostsV();
-
+    uint64_t internal_seed = system.seed64;
 #ifdef RANDOM123_EXIST
     if (mdStep == 0)
     {
-        if (system.comm->rank() == 0)
+        if (internal_seed == 0)
         {
-            int rng1, rng2, rng3;
-            rng1 = (*rng)(2);
-            rng2 = (*rng)(INT_MAX);
-            rng3 = (*rng)(INT_MAX);
-            seed64 = (uint64_t)rng1 * (uint64_t)rng2 * (uint64_t)UINT_MAX + (uint64_t)rng3;
+            if (system.comm->rank() == 0)
+            {
+                int rng1, rng2, rng3;
+                rng1 = (*rng)(2);
+                rng2 = (*rng)(INT_MAX);
+                rng3 = (*rng)(INT_MAX);
+                internal_seed =
+                    (uint64_t)rng1 * (uint64_t)rng2 * (uint64_t)UINT_MAX + (uint64_t)rng3;
+            }
+
+            mpi::broadcast(*system.comm, internal_seed, 0);
+            system.seed64 = internal_seed;
         }
 
-        mpi::broadcast(*system.comm, seed64, 0);
-
         counter = {{0}};
-        ukey = {{seed64}};
+        ukey = {{internal_seed}};
         key = ukey;
         // crng = threefry2x64(counter, key);
         // counter.v[0]=ULONG_MAX-1;std::cout<<"CTR> "<<counter.v[0]<<"\n";
@@ -150,6 +155,7 @@ void DPDThermostat::thermalize()
     }
 #endif
     // loop over VL pairs
+    intStep = integrator->getStep();
     for (PairList::Iterator it(verletList->getPairs()); it.isValid(); ++it)
     {
         Particle& p1 = *it->first;
@@ -164,7 +170,11 @@ void DPDThermostat::thermalize()
         (uint64_t)ntotal * (uint64_t)(ntotal - 1) / (uint64_t)2 * (uint64_t)ncounter_per_pair;
 
     if (ULONG_MAX - mdStep * ncounter_per_step < ncounter_per_step)
+    {
         mdStep = 0;
+        internal_seed = 0;
+        system.seed64 = 0;
+    }
     else
         mdStep++;
 #endif
@@ -177,14 +187,12 @@ void DPDThermostat::frictionThermoDPD(Particle& p1, Particle& p2)
     real dist2 = r.sqr();
     System& system = getSystemRef();
 
-    // Test code to switch DPD modes in shear simulation
-    // mode(0): peculiar vel; mode(1): full vel (incl. shear speed);
-    // mode(2): y-dir exclusive
-    // To activate custom modes, UNCOMMENT all "/* UNCOMMENT TO ACTIVATE
-    // MODE1/2 .. */"
-
+    // Test code for different thermalizing modes
+    // mode(0): the thermostat acts on peculiar velocities (default)
+    // mode(1): on full velocities (incl. shear contribution);
+    // mode(2): on y-dir of velocities ONLY (vorticity)
     // UNCOMMENT TO ACTIVATE MODE1/2
-    int mode = system.lebcMode;
+    int modeThermal = system.lebcMode;
     
 
     if (dist2 < current_cutoff_sqr)
@@ -200,11 +208,12 @@ void DPDThermostat::frictionThermoDPD(Particle& p1, Particle& p2)
         if (i > j) std::swap(i, j);
 
         counter.v[0] =
-            (mdStep * ntotal * (ntotal - 1) / 2 + (ntotal * (i - 1) - i * (i + 1) / 2 + j)) *
+            (intStep * ntotal * (ntotal - 1) / 2 + (ntotal * (i - 1) - i * (i + 1) / 2 + j)) *
             ncounter_per_pair;
         crng = threefry2x64(counter, key);  // call rng generator
 
-        real zrng = u01<double>(crng.v[0]);
+//real zrng = u01<double>(crng.v[0]);
+	real zrng = u01fixedpt<double>(crng.v[0]);
 
         /*UNCOMMENT TO ENABLE GAUSSIAN DISTRIBUTION
         real u2 = u01<double>(crng.v[1]);
@@ -214,24 +223,25 @@ void DPDThermostat::frictionThermoDPD(Particle& p1, Particle& p2)
         r /= dist;
 
         //  UNCOMMENT TO ACTIVATE MODE1/2
-        
-        if (mode == 1)
-        {
-            Real3D vsdiff = {system.shearRate * (p1.position()[2] - p2.position()[2]), .0, .0};
-            veldiff = (p1.velocity() + vsdiff - p2.velocity()) * r;
-        }
-        else if (mode == 2)
-            veldiff = (p1.velocity()[1] - p2.velocity()[1]) * r[1];
+        if (system.ifShear)
+            if (modeThermal == 1)
+            {
+                Real3D vsdiff = {system.shearRate * (p1.position()[2] - p2.position()[2]), .0, .0};
+                veldiff = (p1.velocity() + vsdiff - p2.velocity()) * r;
+            }
+            else if (modeThermal == 2)
+                veldiff = (p1.velocity()[1] - p2.velocity()[1]) * r[1];
+            else
+                veldiff = (p1.velocity() - p2.velocity()) * r;
         else
             veldiff = (p1.velocity() - p2.velocity()) * r;
-        
 
         real friction = pref1 * omega2 * veldiff;
 #ifdef RANDOM123_EXIST
         real r0 = zrng - 0.5;
         /*UNCOMMENT TO ENABLE GAUSSIAN DISTRIBUTION
         r0 = zrng;
-        */
+	*/
 #else
         real r0 = ((*rng)() - 0.5);
 #endif
@@ -240,12 +250,12 @@ void DPDThermostat::frictionThermoDPD(Particle& p1, Particle& p2)
         Real3D f = (noise - friction) * r;
 
         //  UNCOMMENT TO ACTIVATE MODE1/2
-        if (mode == 2)
+        if (system.ifShear && modeThermal == 2)
         {
             f[0]=.0;
             f[2]=.0;
-                }
-                
+        }
+        
 
         p1.force() += f;
         p2.force() -= f;
@@ -266,14 +276,12 @@ void DPDThermostat::frictionThermoTDPD(Particle& p1, Particle& p2)
     real dist2 = r.sqr();
     System& system = getSystemRef();
 
-    // Test code to switch DPD modes in shear simulation
-    // mode(0): peculiar vel; mode(1): full vel (incl. shear speed);
-    // mode(2): y-dir exclusive
-    // To activate custom modes, UNCOMMENT all "/* UNCOMMENT TO ACTIVATE
-    // MODE1/2 .. */"
-
+    // Test code for different thermalizing modes
+    // mode(0): the thermostat acts on peculiar velocities (default)
+    // mode(1): on full velocities (incl. shear contribution);
+    // mode(2): on y-dir of velocities ONLY (vorticity)
     /* UNCOMMENT TO ACTIVATE MODE1/2
-    int mode = system.lebcMode;
+    int modeThermal = system.lebcMode;
     */
 
     if (dist2 < current_cutoff_sqr)
@@ -292,7 +300,7 @@ void DPDThermostat::frictionThermoTDPD(Particle& p1, Particle& p2)
         if (i > j) std::swap(i, j);
 
         counter.v[0] =
-            (mdStep * ntotal * (ntotal - 1) / 2 + (ntotal * (i - 1) - i * (i + 1) / 2 + j)) *
+            (intStep * ntotal * (ntotal - 1) / 2 + (ntotal * (i - 1) - i * (i + 1) / 2 + j)) *
             ncounter_per_pair;
         crng = threefry2x64(counter, key);  // call rng generator
         real zrng = u01<double>(crng.v[1]);
@@ -309,12 +317,12 @@ void DPDThermostat::frictionThermoTDPD(Particle& p1, Particle& p2)
 #endif
         /* UNCOMMENT TO ACTIVATE MODE1/2
         if (system.ifShear)
-            if (mode == 1)
+            if (modeThermal == 1)
             {
                 Real3D vsdiff = {system.shearRate * (p1.position()[2] - p2.position()[2]), .0, .0};
                 veldiff = p1.velocity() - p2.velocity() + vsdiff;
             }
-            else if (mode == 2)
+            else if (modeThermal == 2)
                 veldiff[1] = p1.velocity()[1] - p2.velocity()[1];
             else*/
         veldiff = p1.velocity() - p2.velocity();

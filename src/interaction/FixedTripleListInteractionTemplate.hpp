@@ -178,6 +178,9 @@ inline void FixedTripleListInteractionTemplate<_AngularPotential>::addForces()
                 getSystemRef().dyadicP_xz += dist32[0] * force32[2];
                 getSystemRef().dyadicP_zx += dist32[2] * force32[0];
             }
+//if (getenv("VAR1")!=NULL && (p1.id()==atoi(getenv("VAR1")) ||p2.id()==atoi(getenv("VAR1")) ||p3.id()==atoi(getenv("VAR1"))))
+//std::cout<<"AG> "<<p1.id()<<"("<<p1.position()<<") "<<p2.id()<<"("<<p2.position()<<") "<<p3.id()<<"("<<p3.position()<<") "
+//<<force12<<" "<<force32<<" \n";
         }
     }
     else

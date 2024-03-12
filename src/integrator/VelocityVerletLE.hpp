@@ -73,7 +73,7 @@ private:
 protected:
     bool resortFlag;  //!< true implies need for resort of particles
     int nResorts;
-	int flag_sllod;  
+    int flag_sllod;
     real maxDist;
 
     real maxCut;

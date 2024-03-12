@@ -27,8 +27,8 @@ def info(system, integrator, per_atom=False):
     """
     NPart  = espressopp.analysis.NPart(system).compute()
     T      = espressopp.analysis.Temperature(system).compute()
-    P      = espressopp.analysis.Pressure(system).compute()
-    Pij    = espressopp.analysis.PressureTensor(system).compute()
+    P      = 0.0 #espressopp.analysis.Pressure(system).compute()
+    Pij    = [.0,.0,.0,.0,.0,.0] #espressopp.analysis.PressureTensor(system).compute()
     step   = integrator.step
     Ek     = (3.0/2.0) * NPart * T
     Epot   = []

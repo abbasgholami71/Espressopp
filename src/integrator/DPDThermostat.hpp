@@ -111,7 +111,7 @@ private:
     int ntotal;
     uint64_t ncounter_per_pair;
 #ifdef RANDOM123_EXIST
-    uint64_t seed64;  // user-settable seed
+    // uint64_t seed64;  // user-settable seed
     Threefry2x64::ctr_type counter, crng;
     Threefry2x64::ukey_type ukey;
     Threefry2x64::key_type key;

@@ -149,7 +149,8 @@ class TabulatedBondInteractionType(InteractionType):
         spline = 3
         fg = "table_b"+str(self.parameters['tablenr'])+".xvg"
         fe = fg.split(".")[0]+".tab" # name of espressopp file
-        gromacs.convertTable(fg, fe)
+        if not os.path.exists("table_b0.tab"):
+            gromacs.convertTable(fg, fe)
         potTab = espressopp.interaction.Tabulated(itype=spline, filename=fe)
         interb = espressopp.interaction.FixedPairListTabulated(system, fpl, potTab)
         return interb
@@ -161,7 +162,8 @@ class TabulatedAngleInteractionType(InteractionType):
         spline = 3
         fg = "table_a"+str(self.parameters['tablenr'])+".xvg"
         fe = fg.split(".")[0]+".tab" # name of espressopp file
-        gromacs.convertTable(fg, fe)
+        if not os.path.exists("table_a0.tab"):
+            gromacs.convertTable(fg, fe)
         potTab = espressopp.interaction.TabulatedAngular(itype=spline, filename=fe)
         interb = espressopp.interaction.FixedTripleListTabulatedAngular(system, fpl, potTab)
         return interb
@@ -171,7 +173,8 @@ class TabulatedDihedralInteractionType(InteractionType):
         spline = 3
         fg = "table_d"+str(self.parameters['tablenr'])+".xvg"
         fe = fg.split(".")[0]+".tab" # name of espressopp file
-        gromacs.convertTable(fg, fe)
+        if not os.path.exists("table_d0.tab"):
+            gromacs.convertTable(fg, fe)
         potTab = espressopp.interaction.TabulatedDihedral(itype=spline, filename=fe)
         interb = espressopp.interaction.FixedQuadrupleListTabulatedDihedral(system, fpl, potTab)
         return interb

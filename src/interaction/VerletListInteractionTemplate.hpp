@@ -38,6 +38,7 @@
 #include "bc/BC.hpp"
 
 #include "storage/Storage.hpp"
+#include <cstdlib>
 
 namespace espressopp
 {
@@ -119,6 +120,7 @@ inline void VerletListInteractionTemplate<_Potential>::addForces()
 
     int vlmaxtype = verletList->getMaxType();
     Potential max_pot = potentialArray.at(vlmaxtype, vlmaxtype);  // force a resize
+    int mode = verletList->getSystemRef().lebcMode;
 
     // Uncomment below for analyzing shear simulations
     if (verletList->getSystemRef().ifViscosity && verletList->getSystemRef().shearOffset != .0)
@@ -132,44 +134,46 @@ inline void VerletListInteractionTemplate<_Potential>::addForces()
         {
             Particle &p1 = *it->first;
             Particle &p2 = *it->second;
-
-            // Get minimum vector for computing stress tensor
-            Real3D dist;
-            Real3D dist_tmp(.0);
-            if (p1.position()[2] - p2.position()[2] > Lz / 2.0)
-            {
-                dist_tmp[0] = -offs;
-                int xtmp = static_cast<int>(
-                    floor((p1.position()[0] + dist_tmp[0] - p2.position()[0]) / Lx + 0.5));
-                dist_tmp[0] -= (xtmp + .0) * Lx;
-            }
-            else if (p1.position()[2] - p2.position()[2] < -Lz / 2.0)
-            {
-                dist_tmp[0] = offs;
-                int xtmp = static_cast<int>(
-                    floor((p1.position()[0] + dist_tmp[0] - p2.position()[0]) / Lx + 0.5));
-                dist_tmp[0] -= (xtmp + .0) * Lx;
-            }
-            system.bc->getMinimumImageVectorBox(dist, p1.position() + dist_tmp, p2.position());
-
-            int type1 = p1.type();
-            int type2 = p2.type();
-            const Potential &potential = potentialArray(type1, type2);
-            // shared_ptr<Potential> potential = getPotential(type1, type2);
-
-            Real3D force(0.0);
-            if (potential._computeForce(force, p1, p2))
-            {
-                // if(potential->_computeForce(force, p1, p2)) {
-                p1.force() += force;
-                p2.force() -= force;
-
-                // Compute xz-/zx- components from stress Tensor
-                system.dyadicP_xz += dist[0] * force[2];
-                system.dyadicP_zx += dist[2] * force[0];
-
-                LOG4ESPP_TRACE(_Potential::theLogger,
-                               "id1=" << p1.id() << " id2=" << p2.id() << " force=" << force);
+            
+            if (mode>=0 || (mode==-9 && p1.pib()!=p2.pib())){
+                // Get minimum vector for computing stress tensor
+                Real3D dist;
+                Real3D dist_tmp(.0);
+                if (p1.position()[2] - p2.position()[2] > Lz / 2.0)
+                {
+                    dist_tmp[0] = -offs;
+                    int xtmp = static_cast<int>(
+                        floor((p1.position()[0] + dist_tmp[0] - p2.position()[0]) / Lx + 0.5));
+                    dist_tmp[0] -= (xtmp + .0) * Lx;
+                }
+                else if (p1.position()[2] - p2.position()[2] < -Lz / 2.0)
+                {
+                    dist_tmp[0] = offs;
+                    int xtmp = static_cast<int>(
+                        floor((p1.position()[0] + dist_tmp[0] - p2.position()[0]) / Lx + 0.5));
+                    dist_tmp[0] -= (xtmp + .0) * Lx;
+                }
+                system.bc->getMinimumImageVectorBox(dist, p1.position() + dist_tmp, p2.position());
+    
+                int type1 = p1.type();
+                int type2 = p2.type();
+                const Potential &potential = potentialArray(type1, type2);
+                // shared_ptr<Potential> potential = getPotential(type1, type2);
+    
+                Real3D force(0.0);
+                if (potential._computeForce(force, p1, p2))
+                {
+                    // if(potential->_computeForce(force, p1, p2)) {
+                    p1.force() += force;
+                    p2.force() -= force;
+    
+                    // Compute xz-/zx- components from stress Tensor
+                    system.dyadicP_xz += dist[0] * force[2];
+                    system.dyadicP_zx += dist[2] * force[0];
+    
+                    LOG4ESPP_TRACE(_Potential::theLogger,
+                                   "id1=" << p1.id() << " id2=" << p2.id() << " force=" << force);
+                }
             }
         }
     }
@@ -179,19 +183,21 @@ inline void VerletListInteractionTemplate<_Potential>::addForces()
         {
             Particle &p1 = *it->first;
             Particle &p2 = *it->second;
-            int type1 = p1.type();
-            int type2 = p2.type();
-            const Potential &potential = potentialArray(type1, type2);
-            // std::shared_ptr<Potential> potential = getPotential(type1, type2);
-
-            Real3D force(0.0);
-            if (potential._computeForce(force, p1, p2))
-            {
-                // if(potential->_computeForce(force, p1, p2)) {
-                p1.force() += force;
-                p2.force() -= force;
-                LOG4ESPP_TRACE(_Potential::theLogger,
-                               "id1=" << p1.id() << " id2=" << p2.id() << " force=" << force);
+            if (mode>=0 || (mode==-9 && p1.pib()!=p2.pib())){
+                int type1 = p1.type();
+                int type2 = p2.type();
+                const Potential &potential = potentialArray(type1, type2);
+                // std::shared_ptr<Potential> potential = getPotential(type1, type2);
+    
+                Real3D force(0.0);
+                if (potential._computeForce(force, p1, p2))
+                {
+                    // if(potential->_computeForce(force, p1, p2)) {
+                    p1.force() += force;
+                    p2.force() -= force;
+                    LOG4ESPP_TRACE(_Potential::theLogger,
+                                   "id1=" << p1.id() << " id2=" << p2.id() << " force=" << force);
+                }
             }
         }
     }
@@ -205,10 +211,12 @@ inline real VerletListInteractionTemplate<_Potential>::computeEnergy()
 
     real e = 0.0;
     real es = 0.0;
+int mode = verletList->getSystemRef().lebcMode;
     for (PairList::Iterator it(verletList->getPairs()); it.isValid(); ++it)
     {
         Particle &p1 = *it->first;
         Particle &p2 = *it->second;
+if (mode>=0 || (mode==-9 && p1.pib()!=p2.pib())){
         int type1 = p1.type();
         int type2 = p2.type();
         const Potential &potential = getPotential(type1, type2);
@@ -218,6 +226,7 @@ inline real VerletListInteractionTemplate<_Potential>::computeEnergy()
         es += e;
         LOG4ESPP_TRACE(_Potential::theLogger,
                        "id1=" << p1.id() << " id2=" << p2.id() << " potential energy=" << e);
+}
     }
 
     // reduce over all CPUs

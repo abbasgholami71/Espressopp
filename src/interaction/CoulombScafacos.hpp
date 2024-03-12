@@ -98,6 +98,9 @@ private:
     int nParticles;   // local variable for the number of particles
     int num_glob;     // the total number of particles, input from arg/env
     bool ifBoundaryCross;
+    // parameters for shear flow
+    real cottheta = .0;
+    bool shear_flag = false;
 
     // real rclx, rcly, rclz;
     real force_prefac[3];  // real array for force prefactors [0]: x,[1]: y,[2]: z
@@ -268,6 +271,12 @@ public:
         //}
         result = NULL;
 
+        shear_flag = system->ifShear;
+        if (shear_flag)
+        {
+            real offs = system->shearOffset;
+            cottheta = ((offs > Lx / 2.0 ? offs - Lx : offs)) / Lz;
+        }
         // common_parameters="box_a,50.00,0.0,0.0,box_b,0.0,50.00,0.0,box_c,0.0,0.0,50.00,periodicity,1,1,1,offset,0.0,0.0,0.0,near_field_flag,1");
         strcpy(common_parameters, "box_a,");
         strcat(common_parameters, llx);
@@ -277,8 +286,14 @@ public:
         strcat(common_parameters, ",0.0,");
         strcat(common_parameters, lly);
         strcat(common_parameters, ",0.0");
-        strcat(common_parameters, ",box_c");
-        strcat(common_parameters, ",0.0");
+        strcat(common_parameters, ",box_c,");
+        if (shear_flag && cottheta != .0)
+            strcat(common_parameters, "0.0");
+        else{
+            string Llx_z = to_string(Lz * cottheta);
+            const char *llx_z = Llx_z.c_str();
+            strcat(common_parameters, llx_z);
+        }
         strcat(common_parameters, ",0.0,");
         strcat(common_parameters, llz);
 
@@ -547,7 +562,7 @@ public:
 
             nlocal_map = k;
         }
-        if (ifTuned)
+        if (1==0) //ifTuned)
         {
             fcs_p3m_get_alpha(handle, &p3m_alpha);
             fcs_p3m_get_r_cut(handle, &p3m_rcut);

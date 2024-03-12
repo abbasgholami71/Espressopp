@@ -206,8 +206,8 @@ def fastwritexyz(filename, system, velocities = True, unfolded = True, append = 
     else:
         file = open(filename,'w')
 
-    configurations = espressopp.analysis.ConfigurationsExt(system)
-    configurations.unfolded = unfolded
+    configurations = espressopp.analysis.Configurations(system)
+    #configurations.unfolded = unfolded
     configurations.gather()
     configuration = configurations[0]
 
@@ -223,7 +223,8 @@ def fastwritexyz(filename, system, velocities = True, unfolded = True, append = 
     st = "%d\n%15.10f %15.10f %15.10f\n" % (numParticles, box_x, box_y, box_z)
     file.write(st)
 
-    for pid in configuration:
+    #for pid in configuration:
+    for pid in range(1,configuration.size+1):
         xpos   = configuration[pid][0]*scale
         ypos   = configuration[pid][1]*scale
         zpos   = configuration[pid][2]*scale

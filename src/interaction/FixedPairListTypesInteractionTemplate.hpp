@@ -436,9 +436,9 @@ inline real FixedPairListTypesInteractionTemplate<_Potential>::computeVirial()
 template <typename _Potential>
 inline void FixedPairListTypesInteractionTemplate<_Potential>::computeVirialTensor(Tensor &w)
 {
-    std::cout << "Warning! At the moment computeVirialTensor() in "
+    /*std::cout << "Warning! At the moment computeVirialTensor() in "
                  "FixedPairListTypesInteractionTemplate does not work."
-              << std::endl;
+              << std::endl;*/
 
     /*LOG4ESPP_INFO(theLogger, "compute the virial tensor for the FixedPair List");
 
@@ -471,9 +471,9 @@ template <typename _Potential>
 inline void FixedPairListTypesInteractionTemplate<_Potential>::computeVirialTensor(Tensor &w,
                                                                                    real z)
 {
-    std::cout << "Warning! At the moment computeVirialTensor() in "
+    /*std::cout << "Warning! At the moment computeVirialTensor() in "
                  "FixedPairListTypesInteractionTemplate does not work."
-              << std::endl;
+              << std::endl;*/
     /*LOG4ESPP_INFO(theLogger, "compute the virial tensor for the FixedPair List");
 
     Tensor wlocal(0.0);
